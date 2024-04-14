@@ -1,4 +1,5 @@
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -496,13 +497,15 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
             int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
                 struct MemoryBlock *current = memory;
                 while (current != NULL) {
-                    if (!current->is_allocated && current->length >= running_process->memory_size) {
+                    if (!current->is_allocated && current->length >= running_process->memory_requirement) {
+
                         current->is_allocated = 1;
                         strcpy(current->process_name, running_process->name);
                         return 1;
                     }
                     current = current->next;
-                if (in_memory(&memory_head, current_running_process) || allocate_memory(memory_head, current_running_process)) {
+                if (in_memory(&memory_head, &current_running_process) || allocate_memory(&memory_head, &current_running_process)) 
+
 
             if (allocate_memory(memory_head, current_running_process)) {
                 check = 1;
@@ -516,7 +519,7 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
         }
     }
 }
-
+            }
 int find_memory_address(struct MemoryBlock **memory, char* name){
     struct MemoryBlock *memory_head = *memory;
     while(memory_head != NULL){
@@ -590,7 +593,8 @@ void round_robin(struct Process **processes, struct PerformStat **statistics, st
                 printf("%d,%s,process-name=%s,proc-remaining=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, ready_process_num(statistics, time_counter) - num_process_done);              
                 update_stat_data(statistics, running_processes->name, time_counter);
                 *simulation_time = time_counter;
-                deallocate_memory(&running_processes, &memory_head);
+                deallocate_memory(&running_processes, &memory_head, memory_strategy);
+
                 remove_head(&running_processes);
             }
         }else{
@@ -680,6 +684,10 @@ int main(int argc, char* argv[]){
     struct PerformStat *statistics = NULL;
     struct MemoryBlock *memory = initialize_memory(MEMORY_CAPACITY);
     int num_processes = read_input_file(filename, &processes, &statistics);
+    
+
+    void round_robin(struct Process **processes, struct PerformStat **statistics, struct MemoryBlock **memory, int num_processes, char *memory_strategy, int quantum, int *simulation_time);
+
     round_robin(&processes, &statistics, &memory, num_processes, memory_strategy, quantum, &simulation_time);
     print_stat(&statistics, &simulation_time);
     
@@ -687,5 +695,3 @@ int main(int argc, char* argv[]){
     free_stat(statistics);
     return 0;
 }
-
-// ./allocate -f fill.txt -q 3 -m first-fit
