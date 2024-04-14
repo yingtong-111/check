@@ -314,10 +314,12 @@ int page_fit(struct Process* process, int* pages, struct Process** ready_queue, 
 
 
 //新加
-int page_fit(struct process* process, int* pages, struct  Process** ready_queue, int time) { // Add 'struct' before the type names 'process_t' and 'list_t', and fix the parameter types
+int page_fit(struct  Process* process, int* pages, struct  Process** ready_queue, int time) { // Add 'struct' before the type names 'process_t' and 'list_t', and fix the parameter types
     const int PAGE_SIZE = 4;
     int num_frame = ceil((double)process->memory_requirement / PAGE_SIZE);
     int available_pages = count_page(pages);
+
+    void evict_page(int num_frame, struct Process** ready_queue, int* pages, int time); // Add the missing function declaration
 
     if (available_pages < num_frame) {
         evict_page(num_frame, ready_queue, pages, time); // Fix the parameter names
@@ -337,6 +339,8 @@ int page_fit(struct process* process, int* pages, struct  Process** ready_queue,
 }
 
 //新加
+void evict_page(int num_frame, struct Process** ready_queue, int* pages, int time);
+
 int has_printed_eviction_info = 0;
 void reset_eviction_print_flag() {
     has_printed_eviction_info = 0; // Reset the print flag at the start of a new cycle or as needed
@@ -423,7 +427,7 @@ void deallocate_memory(struct Process **running_process, struct MemoryBlock **me
     
     // Check if using paged strategy and handle accordingly
     if (strcmp(memory_strategy, "paged") == 0) {
-        for (int i = 0; i < current_running_process->num_frame; i++) {
+        for (int i = 0; i < current_running_process->num_page; i++) {
             pages[current_running_process->frame[i]] = 0; 
         }
         current_running_process->num_page = 0; 
@@ -481,9 +485,7 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
             check = 1;  // 如果内存策略是无限，假设总是有足够内存
         } else if (strcmp(memory_strategy, "first-fit") == 0) {
             // 尝试按 first-fit 策略分配内存
-            if (in_memory(memory_head, current_running_process) || allocate_memory(memory_head, current_running_process)) {
-                check = 1;
-            }
+            int in_memory(struct MemoryBlock *memory, struct Process *running_processes);
         } else if (strcmp(memory_strategy, "paged") == 0) {
             // 尝试按 paged 策略分配内存
             if (page_fit(current_running_process, pages, waiting_processes, current_running_process->arrival_time)) {
@@ -491,10 +493,20 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
             }
         } else {
             // 默认情况，尝试现有的内存分配策略
-            if (in_memory(memory_head, current_running_process) || allocate_memory(memory_head, current_running_process)) {
+            int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
+                struct MemoryBlock *current = memory;
+                while (current != NULL) {
+                    if (!current->is_allocated && current->length >= running_process->memory_size) {
+                        current->is_allocated = 1;
+                        strcpy(current->process_name, running_process->name);
+                        return 1;
+                    }
+                    current = current->next;
+                if (in_memory(&memory_head, current_running_process) || allocate_memory(memory_head, current_running_process)) {
+
+            if (allocate_memory(memory_head, current_running_process)) {
                 check = 1;
             }
-        }
 
         if (check != 1) {
             // 如果内存分配失败，将进程移到等待队列的尾部
