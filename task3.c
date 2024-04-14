@@ -475,6 +475,19 @@ int in_memory(struct MemoryBlock **memory, struct Process **running_processes){
 
 }
 // 新加
+int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
+    struct MemoryBlock *current = memory;
+    while (current != NULL) {
+        if (!current->is_allocated && current->length >= running_process->memory_requirement) {
+            current->is_allocated = 1;
+            strcpy(current->process_name, running_process->name);
+            return 1;  // 成功分配内存
+        }
+        current = current->next;
+    }
+    return 0;  // 未能分配内存
+}
+// 新加
 void process_manager(struct MemoryBlock **memory, struct Process **running_processes, struct Process **waiting_processes, int quantum, char *last_process_name, char *memory_strategy, int *pages) {
     int check = 0;
     while (check != 1 && *running_processes != NULL) {
@@ -492,34 +505,19 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
                 check = 1;
             }
         } else {
-            // 默认情况，尝试现有的内存分配策略
-            int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
-                struct MemoryBlock *current = memory;
-                while (current != NULL) {
-                    if (!current->is_allocated && current->length >= running_process->memory_requirement) {
-
-                        current->is_allocated = 1;
-                        strcpy(current->process_name, running_process->name);
-                        return 1;
-                    }
-                    current = current->next;
-                if (in_memory(&memory_head, &current_running_process) || allocate_memory(memory_head, current_running_process))
-
 
 
             if (allocate_memory(memory_head, current_running_process)) {
                 check = 1;
-            }
-
-        if (check != 1) {
-            // 如果内存分配失败，将进程移到等待队列的尾部
+            }else{
             strcpy(last_process_name, current_running_process->name);
             aHead_to_bTail(running_processes, waiting_processes);
             *running_processes = current_running_process;  
         }
     }
 }
-            }
+
+
 int find_memory_address(struct MemoryBlock **memory, char* name){
     struct MemoryBlock *memory_head = *memory;
     while(memory_head != NULL){
@@ -683,7 +681,5 @@ int main(int argc, char* argv[]){
     
     free_processes(processes);
     free_stat(statistics);
-    return 0;
-}
-
-// ./allocate -f fill.txt -q 3 -m first-fit
+            return 0;
+        }
