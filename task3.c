@@ -1,5 +1,4 @@
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -504,7 +503,8 @@ void process_manager(struct MemoryBlock **memory, struct Process **running_proce
                         return 1;
                     }
                     current = current->next;
-                if (in_memory(&memory_head, &current_running_process) || allocate_memory(&memory_head, &current_running_process)) 
+                if (in_memory(&memory_head, &current_running_process) || allocate_memory(memory_head, current_running_process))
+
 
 
             if (allocate_memory(memory_head, current_running_process)) {
@@ -695,3 +695,5 @@ int main(int argc, char* argv[]){
     free_stat(statistics);
     return 0;
 }
+
+// ./allocate -f fill.txt -q 3 -m first-fit
