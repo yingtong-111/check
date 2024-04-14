@@ -475,6 +475,7 @@ int in_memory(struct MemoryBlock **memory, struct Process **running_processes){
 
 }
 // 新加
+
 int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
     struct MemoryBlock *current = memory;
     while (current != NULL) {
