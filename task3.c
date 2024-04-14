@@ -35,11 +35,11 @@ struct PerformStat{
     float overhead_time;
     struct PerformStat *next;
 };
-typedef struct{
-    struct Process; // Add the missing struct definition
+
+typedef struct {
     struct Process *head;
     struct Process *tail;
-}
+} ProcessQueue;
 
 struct MemoryBlock {
     int is_allocated; 
@@ -311,6 +311,8 @@ int count_page(int pages[]) {
 int first_fit(struct Process* process, int* memory);
 int page_fit(struct Process* process, int* pages, struct Process** ready_queue, int time);
 
+
+
 //新加
 int page_fit(struct process* process, int* pages, struct  Process** ready_queue, int time) { // Add 'struct' before the type names 'process_t' and 'list_t', and fix the parameter types
     const int PAGE_SIZE = 4;
@@ -412,7 +414,7 @@ int allocate_memory(struct MemoryBlock **memory, struct Process **running_proces
     }return 0;
 }
 
-void deallocate_memory(struct Process **running_process, struct MemoryBlock **memory){
+void deallocate_memory(struct Process **running_process, struct MemoryBlock **memory,char* memory_strategy){
     struct Process *current_running_process = *running_process;
     struct MemoryBlock *current = *memory;
     struct MemoryBlock *prev = NULL;
@@ -424,7 +426,7 @@ void deallocate_memory(struct Process **running_process, struct MemoryBlock **me
         for (int i = 0; i < current_running_process->num_frame; i++) {
             pages[current_running_process->frame[i]] = 0; 
         }
-        current_running_process->num_frame = 0;  
+        current_running_process->num_page = 0; 
         return; 
     }
 
@@ -470,6 +472,7 @@ int in_memory(struct MemoryBlock **memory, struct Process **running_processes){
 }
 // 新加
 void process_manager(struct MemoryBlock **memory, struct Process **running_processes, struct Process **waiting_processes, int quantum, char *last_process_name, char *memory_strategy, int *pages) {
+    int check = 0;
     while (check != 1 && *running_processes != NULL) {
         struct Process *current_running_process = *running_processes;
         struct MemoryBlock *memory_head = *memory;
@@ -545,7 +548,8 @@ void round_robin(struct Process **processes, struct PerformStat **statistics, st
             }
             
         }
-        process_manager(&memory_head, &running_processes, &waiting_processes, quantum, last_process_name);
+        process_manager(&memory_head, &running_processes, &waiting_processes, quantum, last_process_name, memory_strategy, pages); // All required arguments included
+
 
         if (running_processes != NULL){
             running_processes->state = RUNNING;
