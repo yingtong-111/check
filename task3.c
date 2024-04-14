@@ -544,66 +544,56 @@ void round_robin(struct Process **processes, struct PerformStat **statistics, st
     struct Process *waiting_processes = *processes;
     struct Process *running_processes = NULL;
     struct MemoryBlock *memory_head = *memory;
-    char last_process_name[FILENAME_LENGTH];
+    char last_process_name[FILENAME_LENGTH] = {0};
     int time_counter = 0;
     int num_process_done = 0;
 
     while (num_process_done < num_process){
         sort_by_arrival_time(&waiting_processes);
 
-        // getting all the processes that arrived
+        // Getting all the processes that arrived
         struct Process* current_waiting_process = waiting_processes;
         while (current_waiting_process != NULL){   
             if (current_waiting_process->arrival_time <= time_counter){
                 current_waiting_process->state = READY; 
                 aHead_to_bTail(&current_waiting_process, &running_processes);
-                waiting_processes = current_waiting_process;
-            }else{
-                current_waiting_process = current_waiting_process -> next;
+                waiting_processes = current_waiting_process->next;
             }
-            
+            current_waiting_process = current_waiting_process->next;
         }
         process_manager(&memory_head, &running_processes, &waiting_processes, quantum, last_process_name, memory_strategy, pages); // All required arguments included
-
 
         if (running_processes != NULL){
             running_processes->state = RUNNING;
             if(strcmp(last_process_name, running_processes->name) != 0){
-                    printf("%d,%s,process-name=%s,remaining-time=%d,mem-usage=%.0f%%,allocated-at=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time, mem_usage(memory), find_memory_address(memory, running_processes->name));
-                }
-                else{
-                    printf("%d,%s,process-name=%s,remaining-time=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time);
-                }
-                
+                printf("%d,%s,process-name=%s,remaining-time=%d,mem-usage=%.0f%%,allocated-at=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time, mem_usage(memory), find_memory_address(memory, running_processes->name));
+            } else {
+                printf("%d,%s,process-name=%s,remaining-time=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time);
             }
+
             strcpy(last_process_name, running_processes->name);
             if ((running_processes->service_time - quantum) > 0){
-
                 running_processes->service_time -= quantum; 
                 running_processes->arrival_time = quantum + time_counter;
-
                 aHead_to_bTail(&running_processes, &waiting_processes);
-
                 time_counter += quantum;
-            }else{
-                // finish at the end or before quantum
+            } else {
+                // Finish at the end or before quantum
                 running_processes->state = FINISHED;
-                time_counter += quantum;
+                time_counter += running_processes->service_time;
                 num_process_done++;
                 printf("%d,%s,process-name=%s,proc-remaining=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, ready_process_num(statistics, time_counter) - num_process_done);              
                 update_stat_data(statistics, running_processes->name, time_counter);
                 *simulation_time = time_counter;
                 deallocate_memory(&running_processes, &memory_head, memory_strategy);
-
                 remove_head(&running_processes);
             }
-        }else{
+        } else {
             time_counter += quantum;
         }
-        
     }
-
 }
+
 
 /*
 //new, addr is for frame, beacuuase frae means the proc corresponds to the frame
