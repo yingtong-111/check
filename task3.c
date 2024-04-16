@@ -1,4 +1,3 @@
-// #include does not work
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -655,6 +654,9 @@ void ff_deallocate_memory(struct Process **running_process, struct MemoryBlock *
     struct MemoryBlock *current = *memory;
     struct MemoryBlock *prev = NULL;
     struct MemoryBlock *next_block = NULL;
+
+
+    
     while(current != NULL && strcmp(current->process_name,current_running_process->name) != 0){
         prev = current;
         current = current->next;
