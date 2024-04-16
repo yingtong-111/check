@@ -248,7 +248,7 @@ void aHead_to_aTail(struct Process **processes){
         }current -> next = old_head;
         old_head->next = NULL;
     }
-}
+
 */
 char* find_matching_pages_as_string(struct Process** process, struct Page pages[]) {
     // Allocate memory for the string to store page numbers
@@ -654,12 +654,17 @@ void ff_deallocate_memory(struct Process **running_process, struct MemoryBlock *
     struct MemoryBlock *current = *memory;
     struct MemoryBlock *prev = NULL;
     struct MemoryBlock *next_block = NULL;
-
-
-    
-    while(current != NULL && strcmp(current->process_name,current_running_process->name) != 0){
+    char current_process_name[MEMORY_STRATEGY_LENGTH];
+    char current_running_process_name[MEMORY_STRATEGY_LENGTH];
+    // Copy process names into character arrays
+    strcpy(current_process_name, current->process_name);
+    strcpy(current_running_process_name, current_running_process->name);
+    while(current != NULL && strcmp(current_process_name,current_running_process_name) != 0){
         prev = current;
         current = current->next;
+        strcpy(current_process_name, current->process_name);
+        strcpy(current_running_process_name, current_running_process->name);
+        
     }
 
     if (current == NULL){
@@ -861,7 +866,6 @@ void remove_tail(struct Process **head) {
 void update_history_process(struct Process** running_process, struct Process** process_history){
     struct Process *current = *process_history;
     struct Process *running_head = *running_process;
-    struct Process *prev = NULL;
     
     if (in_history(running_head->name, process_history) == 1){
         while(current != NULL){
@@ -872,7 +876,6 @@ void update_history_process(struct Process** running_process, struct Process** p
               //  print_processes(*running_process); 878
                 return;
             }else{
-                prev = current;
                 current = current->next;
             }
         }
@@ -956,7 +959,7 @@ void round_robin(struct Process **processes, struct Process **process_history, s
                 printf("%d,%s,process-name=%s,proc-remaining=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, ready_process_num(statistics, time_counter) - num_process_done);              
                 update_stat_data(statistics, running_processes->name, time_counter);
                 *simulation_time = time_counter;
-                if(strcmp(memory_strategy, "infinite") == 0 || strcmp(memory_strategy, "first-fit") == 0){
+                if(strcmp(memory_strategy, "first-fit") == 0){
                     ff_deallocate_memory(&running_processes, &memory_head);
                 }
             
