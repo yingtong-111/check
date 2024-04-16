@@ -1,4 +1,4 @@
-
+// #include does not work
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,6 +7,9 @@
 #define MEMORY_STRATEGY_LENGTH 100
 #define DIVISOR 100
 #define MEMORY_CAPACITY 2048
+#define MAX_PAGES 512
+#define PAGE_SIZE 4
+#define PAGE_LIMIT 4
 
 typedef enum{
     READY,
@@ -21,9 +24,17 @@ struct Process{
     int memory_requirement;
     ProcessState state;
     struct Process *next;
-    int frame[512];
-    int num_page;
-    int address;
+};
+
+struct Page{
+    int page_num;
+    int is_allocated;
+    char name[FILENAME_LENGTH];
+};
+
+struct Page_Location {
+    int data;
+    struct Page_Location* next;
 };
 
 struct PerformStat{
@@ -36,19 +47,34 @@ struct PerformStat{
     struct PerformStat *next;
 };
 
-typedef struct {
-    struct Process *head;
-    struct Process *tail;
-} ProcessQueue;
-
-struct MemoryBlock {
-    int is_allocated; 
+struct MemoryBlock{
+    int is_allocated;// a hole or a process
     char process_name[FILENAME_LENGTH];
     int start_address;
     int length;
     struct MemoryBlock *next;
 };
 
+struct Page_Location* create_node(int data) {
+    struct Page_Location* newNode = (struct Page_Location*)malloc(sizeof(struct Page_Location));
+    if (newNode == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    newNode->data = data;
+    newNode->next = NULL;
+    return newNode;
+}
+
+void test_pages(struct Page pages[]) {
+    printf("Page List:\n");
+    for (int i = 0; i < MAX_PAGES; i++) {
+        printf("  Page Number: %d, ", pages[i].page_num);
+        printf("  Is Allocated: %s, ", pages[i].is_allocated ? "Yes" : "No");
+        printf("  Name: %s\n", pages[i].name);
+        printf("\n");
+    }
+}
 
 void get_input_line(int argc, char* argv[], char *filename, char* memory_strategy, int* quantum){
   //  *quantum = 0;
@@ -151,7 +177,16 @@ int read_input_file(char *filename, struct Process **processes, struct PerformSt
     return num_process;
 }
 
-float mem_usage(struct MemoryBlock **memory){
+int page_count(struct Page pages[]){
+    int counter = 0;
+    for (int i = 0; i < MAX_PAGES; i++){
+        if(pages[i].is_allocated == 0){
+            counter++;
+        }
+    }return counter;
+}
+
+float ff_mem_usage(struct MemoryBlock **memory){
     float using_mem = 0;
     float range_tail = 0;
     if(memory != NULL){
@@ -173,6 +208,17 @@ float mem_usage(struct MemoryBlock **memory){
     
 }
 
+float paged_mem_usage(struct Page pages[]){
+    float using_mem = 0;
+    for(int i = 0; i < MAX_PAGES; i++){
+        if (pages[i].is_allocated == 1){
+            using_mem++;
+        }
+    }
+    return ceil(using_mem*DIVISOR / MAX_PAGES);
+    
+}
+
 // Function to print all processes in the linked list
 void print_processes(struct Process *head) {
     printf("Processes:\n");
@@ -191,11 +237,94 @@ void print_memory(struct MemoryBlock *head) {
         head = head->next;
     }
 }
+/*
+void aHead_to_aTail(struct Process **processes){
+    struct Process* temp = *processes;
+    if (temp->next != NULL && temp != NULL){
+        struct Process *old_head = temp;
+        *processes = temp -> next;
+        struct Process *current = *processes;
+        while(current -> next != NULL){
+            current = current -> next;
+        }current -> next = old_head;
+        old_head->next = NULL;
+    }
+}
+*/
+char* find_matching_pages_as_string(struct Process** process, struct Page pages[]) {
+    // Allocate memory for the string to store page numbers
+    char* matched_pages_string = (char*)malloc(sizeof(char) * MAX_PAGES * 10 + 3); // Assuming each page number takes at most 10 characters
+    if (matched_pages_string == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(matched_pages_string, "["); // Start with opening square bracket
+    int offset = 1;
+    // Iterate through each page
+    for (int i = 0; i < MAX_PAGES; i++) {
+        // Check if the page is allocated and its name matches the process name
+        if (pages[i].is_allocated && strcmp(pages[i].name, (*process)->name) == 0) {
+            // Convert the page number to string and concatenate it to the matched_pages_string
+            offset += sprintf(matched_pages_string + offset, "%d,", pages[i].page_num);
+        }
+    }
+
+    // Replace the last comma and space with closing square bracket
+    if (offset > 1) {
+        matched_pages_string[offset - 1] = ']'; // Overwrite the comma with closing square bracket
+        matched_pages_string[offset ] = '\0'; // Null-terminate the string
+    } else {
+        strcpy(matched_pages_string, "[]"); // No matches, return empty brackets
+    }
+
+    return matched_pages_string;
+}
+
+char* virtual_find_matching_pages_as_string(struct Process** process, struct Page pages[], int page_num_need) {
+    // Allocate memory for the string to store page numbers
+    char* matched_pages_string = (char*)malloc(sizeof(char) * MAX_PAGES * 10 + 3); // Assuming each page number takes at most 10 characters
+    if (matched_pages_string == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(matched_pages_string, "["); // Start with opening square bracket
+    int offset = 1;
+    int limit = page_count(pages);
+    int tool = 0;
+    if(page_num_need < PAGE_LIMIT){
+        tool = page_num_need;
+    }else{
+        tool = PAGE_LIMIT;
+    }
+
+    for (int i = 0; i < MAX_PAGES && limit < tool; i++) {
+        // Check if the page is allocated and its name matches the process name
+        if (pages[i].is_allocated && strcmp(pages[i].name, (*process)->name) == 0) {
+            // Convert the page number to string and concatenate it to the matched_pages_string
+            offset += sprintf(matched_pages_string + offset, "%d,", pages[i].page_num);
+            limit++;
+        }
+    }
+
+    
+    // Replace the last comma and space with closing square bracket
+        if (offset > 1) {
+         matched_pages_string[offset - 1] = ']'; // Overwrite the comma with closing square bracket
+         matched_pages_string[offset ] = '\0'; // Null-terminate the string
+        } else {
+            strcpy(matched_pages_string, "[]"); // No matches, return empty brackets
+        }
+
+    
+
+    return matched_pages_string;
+}
 
 void aHead_to_bTail(struct Process **a, struct Process **b){
     if (*a != NULL ){
         struct Process* oldHeadA = *a;
-        
         if(*b == NULL){
             *b = *a;  // If list b is empty, the head of a becomes the head of b
         }
@@ -206,11 +335,45 @@ void aHead_to_bTail(struct Process **a, struct Process **b){
             }
             tailB->next = *a;  // Append the head of a to the tail of b
         }
-        
         *a = (*a)->next;  // Move to the next element in a
         oldHeadA->next = NULL;  // Set next of old head of a to NULL, as it's now the last element
     }
 }
+
+
+
+void a_to_bTail(struct Process **a, struct Process **b) {
+    if (a == NULL || *a == NULL) {
+        // Nothing to append if list a is empty
+        return;
+    }
+
+    // Create a new node for list b containing a copy of the data from the head of list a
+    struct Process* newNode = (struct Process*)malloc(sizeof(struct Process));
+    if (newNode == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    memcpy(newNode, *a, sizeof(struct Process));
+    newNode->next = NULL;
+
+    if (*b == NULL) {
+        // If list b is empty, the new node becomes the head of b
+        *b = newNode;
+    } else {
+        // Move tailB to the end of list b
+        struct Process* tailB = *b;
+        while (tailB->next != NULL) {
+            tailB = tailB->next;
+        }
+        // Append the new node to the tail of b
+        tailB->next = newNode;
+    }
+}
+
+
+
+
 
 void sort_by_arrival_time(struct Process** head) {
     if (*head == NULL || (*head)->next == NULL) {
@@ -220,14 +383,12 @@ void sort_by_arrival_time(struct Process** head) {
 
     struct Process* sorted = NULL; // Initialize sorted list
     struct Process* current = *head; // Take the current node
-
+    
     // Traverse the original list
     while (current != NULL) {
         struct Process* next_node = current->next; // Store the next node
-
         // If the current node should be the new head of the sorted list
         if (sorted == NULL || current->arrival_time < sorted->arrival_time) {
-            // (current->arrival_time == sorted->arrival_time && current->memory_requirement < sorted->memory_requirement)
             current->next = sorted; // Insert the current node at the beginning
             sorted = current; // Update the head of the sorted list
         } else {
@@ -235,7 +396,7 @@ void sort_by_arrival_time(struct Process** head) {
             struct Process* traverse = sorted;
             while (traverse->next != NULL &&
                    (traverse->next->arrival_time < current->arrival_time ||
-                    (traverse->next->arrival_time == current->arrival_time && traverse->next->memory_requirement < current->memory_requirement))) {
+                    (traverse->next->arrival_time == current->arrival_time && traverse->next->memory_requirement <= current->memory_requirement))) {
                 traverse = traverse->next;
             }
             // Insert the current node after the traverse node
@@ -294,90 +455,6 @@ int ready_process_num(struct PerformStat **stat, int time){
     return counter;
 }
 
-//新加
-int count_page(int pages[]) { 
-    int count = 0;
-    for (int i = 0; i < 512; i++) {
-        if (pages[i] == 0) {
-            count++;
-        }
-    }
-    return count;
-}
-
-//新加
-
-
-int first_fit(struct Process* process, int* memory);
-int page_fit(struct Process* process, int* pages, struct Process** ready_queue, int time);
-
-
-
-//新加
-int page_fit(struct  Process* process, int* pages, struct  Process** ready_queue, int time) { // Add 'struct' before the type names 'process_t' and 'list_t', and fix the parameter types
-    const int PAGE_SIZE = 4;
-    int num_frame = ceil((double)process->memory_requirement / PAGE_SIZE);
-    int available_pages = count_page(pages);
-
-    void evict_page(int num_frame, struct Process** ready_queue, int* pages, int time); // Add the missing function declaration
-
-    if (available_pages < num_frame) {
-        evict_page(num_frame, ready_queue, pages, time); // Fix the parameter names
-    }
-    int i, count = 0;
-    for (i = 0; i < 512; i++) {
-        if (pages[i] == 0) {
-            process->frame[count] = i;
-            count++;
-            pages[i] = 1;
-            if(count == num_frame){
-                return 1;
-            }
-        }
-    }
-    return count == num_frame ? 1 : 0;
-}
-
-//新加
-void evict_page(int num_frame, struct Process** ready_queue, int* pages, int time);
-
-int has_printed_eviction_info = 0;
-void reset_eviction_print_flag() {
-    has_printed_eviction_info = 0; // Reset the print flag at the start of a new cycle or as needed
-}
-void evict_page(int num_frame, struct Process** ready_queue, int* pages, int time) { 
-    while(count_page(pages)< num_frame){
-       struct Process* head = *ready_queue; 
-        if (head->frame == NULL) { 
-            continue;
-        }
-
-        if (!has_printed_eviction_info && head->num_page > 0) {
-            printf("/%d/, EVICTED, evicted-frame = [", time);
-            for (int i = 0; i < head->num_page; i++) {
-                int index = head->frame[i];
-                printf("%d", index);
-                if (i < head->num_page - 1) {
-                    printf(", ");
-                }
-                pages[index] = 0; // Evict the page
-            }
-            printf("]\n");
-            has_printed_eviction_info = 1; // Set the flag after printing
-        } else {
-            for (int i = 0; i < head->num_page; i++) {
-                pages[head->frame[i]] = 0; // Mark the page as free
-            }
-        }
-        
-        head->num_page = 0; 
-        aHead_to_bTail(ready_queue, &head); // Move the process to the tail of the ready queue
-        *ready_queue = head; // Update the head of the queue
-    }
-
-
-
-
 struct MemoryBlock *initialize_memory(int memory_capacity){
     struct MemoryBlock *memory = malloc(sizeof(struct MemoryBlock));
     if (memory == NULL){
@@ -390,7 +467,7 @@ struct MemoryBlock *initialize_memory(int memory_capacity){
     return memory;
 }
 
-int allocate_memory(struct MemoryBlock **memory, struct Process **running_process){
+int ff_allocate_memory(struct MemoryBlock **memory, struct Process **running_process){
     struct MemoryBlock *current = *memory;
     struct Process *current_running_process = *running_process;
     if(current_running_process != NULL){
@@ -418,22 +495,166 @@ int allocate_memory(struct MemoryBlock **memory, struct Process **running_proces
     }return 0;
 }
 
-void deallocate_memory(struct Process **running_process, struct MemoryBlock **memory,char* memory_strategy){
+int page_in_page(struct Page pages[], char *name){
+    for (int i = 0; i < MAX_PAGES; i++){
+        if(strcmp(pages[i].name, name) == 0){
+            return 1;
+        }
+    }return 0;
+}
+
+int virtual_in_page(struct Page pages[], char *name, int num_page_need){
+    int counter = 0;
+    if (num_page_need < PAGE_LIMIT){
+        for (int i = 0; i < MAX_PAGES; i++){
+            if(strcmp(pages[i].name, name) == 0){
+                counter++;
+            }
+        }if(counter == num_page_need){
+            return 1;
+        }
+    }else{
+        for (int i = 0; i < MAX_PAGES; i++){
+            if(strcmp(pages[i].name, name) == 0){
+                counter++;
+            }if(counter == PAGE_LIMIT){
+                return 1;
+            }
+        }
+    }
+    return 0;
+}
+
+
+void evict_page(struct Page pages[], int page_num_need, int time_counter, struct Process** process_history){
+    int has_printed_eviction_info = 0;
+    while(page_count(pages) < page_num_need && *process_history != NULL){
+        for(int i = 0; i < MAX_PAGES; i++){
+            if(strcmp(pages[i].name, (*process_history)->name) == 0){
+                if (has_printed_eviction_info == 0){
+                    printf("%d,EVICTED,evicted-frames=%s\n", time_counter, find_matching_pages_as_string(process_history, pages));
+                    has_printed_eviction_info = 1;
+                }strcpy(pages[i].name, "");
+                pages[i].is_allocated = 0;
+            }
+        }*process_history = (*process_history)->next;
+    }
+}
+
+void virtual_evict_page(struct Page pages[], int page_num_need, int time_counter, struct Process** process_history){
+    int has_printed_eviction_info = 0;
+    int tool = 0;
+    struct Process* head = *process_history;
+    if(page_num_need < PAGE_LIMIT){
+        tool = page_num_need;
+    }else{
+        tool = PAGE_LIMIT;
+    }
+    while(page_count(pages) < tool && head != NULL){
+        for(int i = 0; i < MAX_PAGES && page_count(pages) < tool; i++){
+            if(strcmp(pages[i].name, head->name) == 0){
+                if (has_printed_eviction_info == 0){
+                    printf("%d,EVICTED,evicted-frames=%s\n", time_counter, virtual_find_matching_pages_as_string(&head, pages, page_num_need));
+                    has_printed_eviction_info = 1;
+                }strcpy(pages[i].name, "");
+                pages[i].is_allocated = 0;
+            }
+        }head = head->next;
+    }
+}
+
+void evict_finished_page(struct Page pages[], int page_num_need, int time_counter, struct Process** current_process){
+    int has_printed_eviction_info = 0;
+    for(int i = 0; i < MAX_PAGES; i++){
+        if(strcmp(pages[i].name, (*current_process)->name) == 0){
+            if (has_printed_eviction_info == 0){
+                printf("%d,EVICTED,evicted-frames=%s\n", time_counter, find_matching_pages_as_string(current_process, pages));
+                has_printed_eviction_info = 1;
+            }strcpy(pages[i].name, "");
+            pages[i].is_allocated = 0;
+        }
+    }
+}
+
+
+void page_allocate_memory(struct Page pages[], struct Process **running_process, struct Process **process_history, int time_counter){
+    struct Process *current_running_process = *running_process;
+    if(current_running_process != NULL){
+        if(page_in_page(pages, current_running_process->name) == 1){
+            return;
+        }else{
+            int page_num_need = ceil((double)current_running_process->memory_requirement / PAGE_SIZE);
+            int page_available = page_count(pages);
+            if(page_available < page_num_need){
+                evict_page(pages, page_num_need, time_counter, process_history);
+            }
+            int counter = 0;
+            for (int i = 0; i < MAX_PAGES && counter < page_num_need; i++){
+                if(pages[i].is_allocated == 0){
+                    pages[i].is_allocated = 1;
+                    strcpy(pages[i].name, current_running_process->name);
+                    counter++;
+                }
+            }
+        }
+    }
+}
+
+void virtual_allocate_memory(struct Page pages[], struct Process **running_process, struct Process **process_history, int time_counter){
+    struct Process *current_running_process = *running_process;
+    int page_num_need = ceil((double)current_running_process->memory_requirement / PAGE_SIZE);
+    if(current_running_process != NULL){
+        if(virtual_in_page(pages, current_running_process->name, page_num_need) == 1){
+            return;
+        }else{
+            if((page_num_need < PAGE_LIMIT && page_count(pages) < page_num_need) || (page_num_need >= PAGE_LIMIT && page_count(pages) < PAGE_LIMIT)){
+                virtual_evict_page(pages, page_num_need, time_counter, process_history);
+            }
+            int counter = 0;
+            // page needed less than 4
+            if (page_num_need < PAGE_LIMIT){
+                for (int i = 0; i < MAX_PAGES && counter < page_num_need; i++){
+                    if(pages[i].is_allocated == 0){
+                        pages[i].is_allocated = 1;
+                        strcpy(pages[i].name, current_running_process->name);
+                        counter++;
+                    }
+                }
+            }else{
+                // page needed more than 4
+                // available page less than needed, only give four frames
+                if(page_count(pages) < page_num_need){
+                    counter = 0;
+                    int tool_counter = page_count(pages);
+                    for (int i = 0; i < MAX_PAGES && counter < tool_counter; i++){
+                        if(pages[i].is_allocated == 0){
+                            pages[i].is_allocated = 1;
+                            strcpy(pages[i].name, current_running_process->name);
+                            counter++;
+                        }
+                    }
+                }else{
+                    // available page more than needed, give as many as possible
+                    for (int i = 0; i < MAX_PAGES && counter < page_num_need; i++){
+                        if(pages[i].is_allocated == 0){
+                            pages[i].is_allocated = 1;
+                            strcpy(pages[i].name, current_running_process->name);
+                            counter++;
+                        }
+                    }
+                }
+                
+            }
+            
+        }
+    }
+}
+
+void ff_deallocate_memory(struct Process **running_process, struct MemoryBlock **memory){
     struct Process *current_running_process = *running_process;
     struct MemoryBlock *current = *memory;
     struct MemoryBlock *prev = NULL;
     struct MemoryBlock *next_block = NULL;
-
-    
-    // Check if using paged strategy and handle accordingly
-    if (strcmp(memory_strategy, "paged") == 0) {
-        for (int i = 0; i < current_running_process->num_page; i++) {
-            pages[current_running_process->frame[i]] = 0; 
-        }
-        current_running_process->num_page = 0; 
-        return; 
-    }
-
     while(current != NULL && strcmp(current->process_name,current_running_process->name) != 0){
         prev = current;
         current = current->next;
@@ -445,7 +666,7 @@ void deallocate_memory(struct Process **running_process, struct MemoryBlock **me
     current->is_allocated = 0;
 
     // merge prev block
-    if (prev != NULL && !prev->is_allocated) {
+    if(prev != NULL && !prev->is_allocated){
         prev->length += current->length;
         prev->next = current->next;
         free(current);
@@ -455,14 +676,14 @@ void deallocate_memory(struct Process **running_process, struct MemoryBlock **me
     // merge next block
     if(current->next != NULL && !current->next->is_allocated){
         next_block = current->next;
-        strcpy(current->process_name, "");
+        strcpy(current->process_name, "NULL");
         current->length += next_block->length;
         current->next = next_block->next;
         free(next_block);
     }
 }
 
-int in_memory(struct MemoryBlock **memory, struct Process **running_processes){
+int ff_in_memory(struct MemoryBlock **memory, struct Process **running_processes){
     struct MemoryBlock *memory_head = *memory;
     struct Process *current = *running_processes;
     while(memory_head != NULL){
@@ -474,50 +695,63 @@ int in_memory(struct MemoryBlock **memory, struct Process **running_processes){
     }return 0;
 
 }
-// 新加
 
-int allocate_memory(struct MemoryBlock *memory, struct Process *running_process) {
-    struct MemoryBlock *current = memory;
-    while (current != NULL) {
-        if (!current->is_allocated && current->length >= running_process->memory_requirement) {
-            current->is_allocated = 1;
-            strcpy(current->process_name, running_process->name);
-            return 1;  // 成功分配内存
+int page_in_memory(struct Page pages[], struct Process **running_processes){
+    struct Process *current = *running_processes;
+    for (int i = 0; i < MAX_PAGES; i++){
+        if (pages->is_allocated  == 1 && strcmp(pages->name, current->name) == 0){
+            return 1;
         }
-        current = current->next;
-    }
-    return 0;  // 未能分配内存
+    }return 0;
+
 }
-// 新加
-void process_manager(struct MemoryBlock **memory, struct Process **running_processes, struct Process **waiting_processes, int quantum, char *last_process_name, char *memory_strategy, int *pages) {
+
+
+void ff_process_manager(struct MemoryBlock **memory, struct Process **running_processes, struct Process **waiting_processes, int quantum, char *last_process_name){
     int check = 0;
-    while (check != 1 && *running_processes != NULL) {
+    while (check != 1 && *running_processes != NULL){
         struct Process *current_running_process = *running_processes;
         struct MemoryBlock *memory_head = *memory;
-
-        if (strcmp(memory_strategy, "infinite") == 0) {
-            check = 1;  // 如果内存策略是无限，假设总是有足够内存
-        } else if (strcmp(memory_strategy, "first-fit") == 0) {
-            // 尝试按 first-fit 策略分配内存
-            int in_memory(struct MemoryBlock *memory, struct Process *running_processes);
-        } else if (strcmp(memory_strategy, "paged") == 0) {
-            // 尝试按 paged 策略分配内存
-            if (page_fit(current_running_process, pages, waiting_processes, current_running_process->arrival_time)) {
-                check = 1;
-            }
-        } else {
-
-
-            if (allocate_memory(memory_head, current_running_process)) {
+        if (ff_in_memory(&memory_head, &current_running_process) == 1){
+            check = 1;
+        }else{
+            if (ff_allocate_memory(&memory_head, &current_running_process) == 1){
                 check = 1;
             }else{
-            strcpy(last_process_name, current_running_process->name);
-            aHead_to_bTail(running_processes, waiting_processes);
-            *running_processes = current_running_process;  
+            //    current_running_process->arrival_time += quantum;
+                strcpy(last_process_name, current_running_process->name);
+                aHead_to_bTail(&current_running_process, waiting_processes);
+                *running_processes = current_running_process;
+            }
         }
     }
 }
 
+void paged_process_manager(struct Page pages[], struct Process **running_processes, struct Process **process_history, struct Process **waiting_processes, int quantum, char *last_process_name, int time_counter){
+    int check = 0;
+    while (check != 1 && *running_processes != NULL){
+        struct Process *current_running_process = *running_processes;
+        if (page_in_memory(pages, &current_running_process) == 1){
+            check = 1;
+        }else{
+            page_allocate_memory(pages, &current_running_process, process_history, time_counter);
+            check = 1;
+        }
+    }
+}
+
+void virtual_process_manager(struct Page pages[], struct Process **running_processes, struct Process **process_history, struct Process **waiting_processes, int quantum, char *last_process_name, int time_counter){
+    int check = 0;
+    while (check != 1 && *running_processes != NULL){
+        struct Process *current_running_process = *running_processes;
+        if (page_in_memory(pages, &current_running_process) == 1){
+            check = 1;
+        }else{
+            virtual_allocate_memory(pages, &current_running_process, process_history, time_counter);
+            check = 1;
+        }
+    }
+}
 
 int find_memory_address(struct MemoryBlock **memory, char* name){
     struct MemoryBlock *memory_head = *memory;
@@ -530,107 +764,210 @@ int find_memory_address(struct MemoryBlock **memory, char* name){
     }return MEMORY_CAPACITY + 1;
 }
 
-/*
-//新加
-print：arrival time，EVICTED，evicted-frame =【】
-1.当内存不足时释放
-2.当finish时释放
-evicted-frame =【】这个array去循环array里面的每一个数字，一个一个print
-设一个flag variable，当print了一次之后，flag = 1，下次再evict的时候，flag = 0，不再print
+int in_history(char* name, struct Process** process_history){
+    struct Process *current = *process_history;
+    while(current != NULL){
+        if (strcmp(name, current->name) == 0){
+            return 1;
+        }else{
+            current = current->next;
+        }
+    }return 0;
+}
 
-*/
-void round_robin(struct Process **processes, struct PerformStat **statistics, struct MemoryBlock **memory, int num_process, char *memory_strategy, int quantum, int *simulation_time){
+void append_process(char* process_name, struct Process** process_history, struct Process** running_process) {
+    if (*process_history == NULL || process_name == NULL) {
+        // Invalid input or empty list, no action needed
+        return;
+    }
+
+    struct Process* current = *process_history;
+    struct Process* prev = NULL;
+
+    // Traverse the list to find the node with the specified name
+    while (current != NULL) {
+        if (strcmp(current->name, process_name) == 0) {
+            break;
+        }else{
+            prev = current;
+            current = current->next;
+        }
+        
+    }
+
+    if (current == NULL) {
+        // Node with the specified name not found in the list, will not happen
+        return;
+    }
+
+    // If the node to move is already at the end, no action needed
+    if (current->next == NULL) {
+        return;
+    }
+
+    // Detach the node to move from its current position
+    if (prev != NULL) {
+        prev->next = current->next;
+    } else {
+        *process_history = current->next;
+    }
+
+    // Find the last node in the list
+    struct Process* head = *process_history;
+    while (head->next != NULL) {
+        head = head->next;
+    }
+    
+    // Create a new node and copy all the information
+    struct Process* new_node = (struct Process*)malloc(sizeof(struct Process));
+    if (new_node == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    memcpy(new_node, current, sizeof(struct Process));
+    new_node->next = NULL;
+    // Append the new node to the end of the list
+    head->next = new_node;
+
+
+}
+
+void remove_tail(struct Process **head) {
+    if (*head == NULL || (*head)->next == NULL) {
+        // List is empty or has only one node (tail is head)
+        // No action needed or cannot remove the only node
+        return;
+    }
+
+    struct Process *current = *head;
+    struct Process *prev = NULL;
+
+    // Traverse the list until the second-to-last node
+    while (current->next != NULL) {
+        prev = current;
+        current = current->next;
+    }
+
+    // Update the second-to-last node's next pointer to NULL
+    prev->next = NULL;
+
+    // Free the memory occupied by the last node
+    free(current);
+}
+
+
+void update_history_process(struct Process** running_process, struct Process** process_history){
+    struct Process *current = *process_history;
+    struct Process *running_head = *running_process;
+    struct Process *prev = NULL;
+    
+    if (in_history(running_head->name, process_history) == 1){
+        while(current != NULL){
+            if (strcmp(running_head->name, current->name) == 0){
+                char* name = running_head->name;
+                append_process(name, process_history, running_process);
+             //   remove_tail(running_process);
+              //  print_processes(*running_process); 878
+                return;
+            }else{
+                prev = current;
+                current = current->next;
+            }
+        }
+
+    }else{
+        a_to_bTail(&running_head, process_history);
+        
+    }
+    
+
+}
+
+void round_robin(struct Process **processes, struct Process **process_history, struct PerformStat **statistics, struct MemoryBlock **memory, int num_process, char *memory_strategy, int quantum, int *simulation_time, struct Page pages[]){
     struct Process *waiting_processes = *processes;
     struct Process *running_processes = NULL;
     struct MemoryBlock *memory_head = *memory;
-    char last_process_name[FILENAME_LENGTH] = {0};
+    char last_process_name[FILENAME_LENGTH] = "";
     int time_counter = 0;
     int num_process_done = 0;
-
+    for (int i = 0; i < MAX_PAGES; i++){
+        pages[i].page_num = i;
+        pages[i].is_allocated = 0;
+        strcpy(pages[i].name, "");
+    }
     while (num_process_done < num_process){
-        sort_by_arrival_time(&waiting_processes);
 
-        // Getting all the processes that arrived
+   // for  (int i = 0; i < 5; i++){
+        sort_by_arrival_time(&waiting_processes);
+        // getting all the processes that arrived
         struct Process* current_waiting_process = waiting_processes;
         while (current_waiting_process != NULL){   
             if (current_waiting_process->arrival_time <= time_counter){
                 current_waiting_process->state = READY; 
                 aHead_to_bTail(&current_waiting_process, &running_processes);
-                waiting_processes = current_waiting_process->next;
+                waiting_processes = current_waiting_process;
+            }else{
+                current_waiting_process = current_waiting_process -> next;
             }
-            current_waiting_process = current_waiting_process->next;
         }
-        process_manager(&memory_head, &running_processes, &waiting_processes, quantum, last_process_name, memory_strategy, pages); // All required arguments included
-
+        if(strcmp(memory_strategy, "first-fit") == 0){
+            ff_process_manager(&memory_head, &running_processes, &waiting_processes, quantum, last_process_name);
+        }else if(strcmp(memory_strategy, "paged") == 0){
+            paged_process_manager(pages, &running_processes, process_history, &waiting_processes, quantum, last_process_name, time_counter);
+        }else if(strcmp(memory_strategy, "virtual") == 0){
+            virtual_process_manager(pages, &running_processes, process_history, &waiting_processes, quantum, last_process_name, time_counter);
+        }else{
+        }
+        // do one process and put it back to waiting list
+        
         if (running_processes != NULL){
             running_processes->state = RUNNING;
             if(strcmp(last_process_name, running_processes->name) != 0){
-                printf("%d,%s,process-name=%s,remaining-time=%d,mem-usage=%.0f%%,allocated-at=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time, mem_usage(memory), find_memory_address(memory, running_processes->name));
-            } else {
-                printf("%d,%s,process-name=%s,remaining-time=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time);
-            }
+                if(strcmp(memory_strategy, "infinite") == 0){
+                    printf("%d,%s,process-name=%s,remaining-time=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time);
+                }else if(strcmp(memory_strategy, "first-fit") == 0){
+                    printf("%d,%s,process-name=%s,remaining-time=%d,mem-usage=%.0f%%,allocated-at=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time, ff_mem_usage(memory), find_memory_address(memory, running_processes->name));
+                }else{
+                    printf("%d,%s,process-name=%s,remaining-time=%d,mem-usage=%.0f%%,mem-frames=%s\n", time_counter, stateToString(running_processes->state), running_processes->name, running_processes->service_time, paged_mem_usage(pages), find_matching_pages_as_string(&running_processes, pages));
+                    update_history_process(&running_processes, process_history);
 
+                }
+                
+            }
             strcpy(last_process_name, running_processes->name);
             if ((running_processes->service_time - quantum) > 0){
-                running_processes->service_time -= quantum; 
+
+                running_processes->service_time -= quantum;
                 running_processes->arrival_time = quantum + time_counter;
+
                 aHead_to_bTail(&running_processes, &waiting_processes);
+
                 time_counter += quantum;
-            } else {
-                // Finish at the end or before quantum
+            }else{
+                // finish at the end or before quantum
                 running_processes->state = FINISHED;
-                time_counter += running_processes->service_time;
+                time_counter += quantum;
                 num_process_done++;
+                if (strcmp(memory_strategy, "paged") == 0 || strcmp(memory_strategy, "virtual") == 0){
+                    evict_finished_page(pages, ceil((double)running_processes->memory_requirement / PAGE_SIZE), time_counter, &running_processes);
+                }
                 printf("%d,%s,process-name=%s,proc-remaining=%d\n", time_counter, stateToString(running_processes->state), running_processes->name, ready_process_num(statistics, time_counter) - num_process_done);              
                 update_stat_data(statistics, running_processes->name, time_counter);
                 *simulation_time = time_counter;
-                deallocate_memory(&running_processes, &memory_head, memory_strategy);
+                if(strcmp(memory_strategy, "infinite") == 0 || strcmp(memory_strategy, "first-fit") == 0){
+                    ff_deallocate_memory(&running_processes, &memory_head);
+                }
+            
                 remove_head(&running_processes);
+                
             }
-        } else {
+        }else{
             time_counter += quantum;
         }
+        
     }
+
 }
-
-
-/*
-//new, addr is for frame, beacuuase frae means the proc corresponds to the frame
-get_arr_list(input_queue,ready_queue,time);
-while(! is_empty (input_queue)|| ! is empty(ready_queue)){
-    struct Process *head = NULL;
-    while(1){
-        head =get_head(ready_queue);
-        if(head == NULL){
-            break;
-        }
-        if(head -> addr!= -1 && strcmp(strategy,"first-fit")==0){
-            break;
-        }
-        int sucess = -1;
-        if(strcmp(strategy,"infinite")== 0){
-            break;
-        }else if (strategy, "first-fit")==0 {
-            sucess = first_fit(head, memory);
-    }else if((strategy,"paged")==0){
-        sucess = page_fit(head, pages, ready_queue, time);
-    }
-    if (success ==1){
-        break;
-    }
-    insert_at_foot(ready_queue, head);
-    }
-}
-*/
-
-
-
-
-
-
-
-
-
 
 void print_stat(struct PerformStat **head, int *simulation_time){
     float tot_tuenaround = 0;
@@ -670,17 +1007,20 @@ int main(int argc, char* argv[]){
     get_input_line(argc, argv, filename, memory_strategy, &quantum);
 
     struct Process *processes = NULL;
+    struct Process *process_history = NULL;
     struct PerformStat *statistics = NULL;
     struct MemoryBlock *memory = initialize_memory(MEMORY_CAPACITY);
+    struct Page page_list[MAX_PAGES];
     int num_processes = read_input_file(filename, &processes, &statistics);
-    
-
-    void round_robin(struct Process **processes, struct PerformStat **statistics, struct MemoryBlock **memory, int num_processes, char *memory_strategy, int quantum, int *simulation_time);
-
-    round_robin(&processes, &statistics, &memory, num_processes, memory_strategy, quantum, &simulation_time);
+    round_robin(&processes, &process_history, &statistics, &memory, num_processes, memory_strategy, quantum, &simulation_time, page_list);
     print_stat(&statistics, &simulation_time);
     
     free_processes(processes);
     free_stat(statistics);
-            return 0;
-        }
+    free(memory);
+    return 0;
+}
+//./allocate -f spec.txt -q 1 -m infinite
+// ./allocate -f fill.txt -q 3 -m first-fit
+//./allocate -f internal-frag.txt -q 1 -m paged
+//./allocate -f no-evict.txt -q 3 -m virtual
