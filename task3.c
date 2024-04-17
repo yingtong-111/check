@@ -197,13 +197,12 @@ int read_input_file(char *filename, struct Process **processes, struct PerformSt
         struct PerformStat *new_statistics = malloc(sizeof(struct PerformStat));
         if (new_process == NULL || new_statistics == NULL) {
             fprintf(stderr, "Memory allocation failed\n");
-            if (new_process != NULL){
-                free(new_process);
-            }
-            if (new_statistics != NULL){
-                free(new_statistics); 
-            }
             fclose(file);
+             if (new_process != NULL) free(new_process);
+            if (new_statistics != NULL) free(new_statistics);
+            
+            free_processes(*processes);
+            free_stat(*statistics);
             exit(EXIT_FAILURE);
         }
         new_process->arrival_time = arrival_time;
