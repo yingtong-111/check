@@ -178,57 +178,64 @@ void update_stat_data(struct PerformStat **head, char* name, int completion_time
     }
 
 }
-
-// read input file and create a linked list of processes
+// Read input file and create a linked list of processes
 int read_input_file(char *filename, struct Process **processes, struct PerformStat **statistics) {
     FILE *file = fopen(filename, "r");
     if (file == NULL) {
         perror("Error opening file");
-        exit(EXIT_FAILURE);
+        return 0;  // Indicate failure to open the file
     }
+    
     int num_process = 0;
     int arrival_time, service_time, memory_requirement;
     char name[FILENAME_LENGTH];
-    
 
-    // Print the values read
+    // Loop to read each process entry from the file
     while (fscanf(file, "%d %s %d %d", &arrival_time, name, &service_time, &memory_requirement) == 4) {
         struct Process *new_process = malloc(sizeof(struct Process));
         struct PerformStat *new_statistics = malloc(sizeof(struct PerformStat));
+        
+        // Handle memory allocation failure
         if (new_process == NULL || new_statistics == NULL) {
             fprintf(stderr, "Memory allocation failed\n");
-            fclose(file);
-             if (new_process != NULL) free(new_process);
-            if (new_statistics != NULL) free(new_statistics);
             
+            // Free partial allocations before returning
+            if (new_process != NULL) free(new_process);
+            if (new_statistics != NULL) free(new_statistics);
+
+            // Clean up previously created nodes before exiting
             free_processes(*processes);
             free_stat(*statistics);
-            exit(EXIT_FAILURE);
+            fclose(file);
+            return 0;  // Indicate failure due to memory allocation error
         }
+        
+        // Initialize the new process structure
         new_process->arrival_time = arrival_time;
         strcpy(new_process->name, name);
         new_process->service_time = service_time;
         new_process->memory_requirement = memory_requirement;
         new_process->next = NULL;
 
+        // Add the new process to the processes linked list
         add_process(processes, new_process);
 
-
+        // Initialize the new statistics structure
         strcpy(new_statistics->name, name);
         new_statistics->arrival_time = arrival_time;
         new_statistics->service_time = service_time;
         new_statistics->next = NULL;
+
+        // Add the new statistics to the statistics linked list
         add_stat(statistics, new_statistics);
 
         num_process++;
-
-        
     }
 
     fclose(file);
-    
-    return num_process;
+    return num_process;  // Return the count of processed entries
 }
+
 
 int page_count(struct Page pages[]){
     int counter = 0;
