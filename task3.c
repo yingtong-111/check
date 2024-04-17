@@ -1040,32 +1040,45 @@ void print_stat(struct PerformStat **head, int *simulation_time){
 }
 
 
-
 int main(int argc, char* argv[]){
-    // read input line
+    if (argc < 4) {
+        fprintf(stderr, "Usage: %s <filename> <memory_strategy> <quantum>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
     char filename[FILENAME_LENGTH];
     char memory_strategy[MEMORY_STRATEGY_LENGTH];
     int quantum;
-    int simulation_time = 0;
-    
+    int simulation_time = 0; // Declare and initialize simulation_time here
+
     get_input_line(argc, argv, filename, memory_strategy, &quantum);
 
     struct Process *processes = NULL;
     struct Process *process_history = NULL;
     struct PerformStat *statistics = NULL;
+
     struct MemoryBlock *memory = initialize_memory(MEMORY_CAPACITY);
+    if (!memory) {
+        fprintf(stderr, "Failed to initialize memory.\n");
+        return EXIT_FAILURE;
+    }
+
     struct Page page_list[MAX_PAGES];
     int num_processes = read_input_file(filename, &processes, &statistics);
+    if (num_processes == 0) {
+        fprintf(stderr, "Failed to read input file or no processes found.\n");
+        free(memory); // Free memory block if read_input_file fails
+        return EXIT_FAILURE;
+    }
+
     round_robin(&processes, &process_history, &statistics, &memory, num_processes, memory_strategy, quantum, &simulation_time, page_list);
     print_stat(&statistics, &simulation_time);
     
     free_processes(processes);
     free_stat(statistics);
     free_processes(process_history);
-    free(memory);
-    return 0;
+    free(memory); // Ensure all dynamically allocated memory is freed
+
+    return EXIT_SUCCESS;
 }
-//./allocate -f spec.txt -q 1 -m infinite
-// ./allocate -f fill.txt -q 3 -m first-fit
-//./allocate -f internal-frag.txt -q 1 -m paged
-//./allocate -f no-evict.txt -q 3 -m virtual
+
