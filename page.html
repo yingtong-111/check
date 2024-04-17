@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Results</title>
+<style>
+  body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f7f4f4;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  .search-container {
+    display: flex;
+    align-items: center;
+    background: rgba(206, 196, 196, 0.7);
+    border-radius: 50px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 10px 20px;
+  }
+  .search-input {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    margin-right: 10px;
+    font-size: 16px;
+    border-radius: 50px;
+  }
+  .search-input:focus {
+    outline: none;
+  }
+  .icon-button {
+    border: none;
+    background: rgba(139, 129, 129, 0.454);
+    border-radius: 50px;
+    cursor: pointer;
+    padding: 10px;
+    transition: transform 0.3s ease;
+    margin: 0 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .icon-button img {
+    width: 30px;
+    height: 30px;
+  }
+  .icon-button:hover {
+    transform: scale(1.4);
+  }
+  .user-icon {
+    width: 50px;
+    height: 50px;
+  }
+  .user-icon img {
+    width: 30px;
+    height: 30px;
+    vertical-align:top;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  .user-icon img:hover {
+    transform: scale(1.5);
+  }
+  .items-grid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 3fr));
+    gap: 20px;
+    padding: 40px;
+  }
+  .item {
+    border: 1px solid #a58d8d;
+    padding: 10px;
+    background: #fdfbfb;
+    border-radius: 5px;
+    text-align: center;
+  }
+  .item img {
+    width: 100%;
+    height: auto;
+    margin-bottom: 8px;
+  }
+  .item-info {
+    font-size: 0.8em;
+    margin-bottom: 8px;
+  }
+  .item-icons img {
+    width: 24px;
+    height: 24px;
+    margin: 0 5px;
+    vertical-align: middle;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  .item-icons img:hover {
+    transform: scale(1.5);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">LOGO</div>
+  <div class="search-container">
+    <input type="text" class="search-input" placeholder="Search...">
+    <button class="icon-button" title="Voice Search">
+      <img src="C:\SQUARE\ICON\Voice.jpg" alt="Voice">
+    </button>
+    <button class="icon-button" title="Image Search">
+      <img src="C:\SQUARE\ICON\Camera.jpg" alt="Camera">
+    </button>
+    <button class="icon-button" title="Search">
+      <img src="C:\SQUARE\ICON\search.jpg" alt="Search">
+    </button>
+  </div>
+  <button class="user-icon" title="USER">
+    <a href="C:\SQUARE\PROFILE.HTML" class="user-icon" title="USER">
+      <img src="C:\SQUARE\ICON\USER.jpg" alt="USER">
+    </a>
+  </button>
+</div>
+
+<div class="items-grid">
+  <!-- Products will be loaded dynamically here -->
+</div>
+
+<<script>
+  window.onload = function() {
+      // 从 sessionStorage 获取产品数据
+      const products = JSON.parse(sessionStorage.getItem('products'));
+      if (products) {
+          displayProducts(products);
+      }
+  };
+  
+  function displayProducts(products) {
+      const container = document.querySelector('.items-grid');
+      container.innerHTML = ''; // 清空现有内容
+      products.forEach(product => {
+          const productHTML = `
+          <div class="item">
+              <img src="${product.image}" alt="Product Image">
+              <div class="item-info">
+                  <p>${product.ProductName} | ${product.Unit}</p>
+                  <p>${product.Price}</p>
+                  <p>Block: ${product.Block}, Shelf: ${product.Shelf}, Level: ${product.Level}</p>
+              </div>
+          </div>`;
+          container.innerHTML += productHTML;
+      });
+  }
+  </script>
+  
+
+</body>
+</html>

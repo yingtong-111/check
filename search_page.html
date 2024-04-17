@@ -1,0 +1,122 @@
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Page</title>
+<style>
+    body {
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: #f7f4f4;
+    }
+    .search-container {
+        display: flex;
+        align-items: center;
+        background: rgba(206, 196, 196, 0.7);
+        border-radius: 50px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        padding: 10px 20px;
+    }
+    .search-input {
+        flex: 1;
+        border: none;
+        padding: 10px;
+        margin-right: 10px;
+        font-size: 16px;
+        border-radius: 50px;
+    }
+    .search-input:focus {
+        outline: none;
+    }
+    .icon-button {
+        border: none;
+        background: rgba(139, 129, 129, 0.454);
+        border-radius: 50px;
+        cursor: pointer;
+        padding: 10px;
+        transition: transform 0.3s ease;
+        margin: 0 5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .icon-button img {
+        width: 30px;
+        height: 30px;
+        transition: filter 0.3s ease, transform 0.3s ease;
+        filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
+    }
+    .icon-button:hover {
+        transform: scale(1.4);
+        filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.7));
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+</head>
+<body>
+
+
+    <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search">
+        <button class="icon-button" title="Voice Search">
+            <img src="C:/SQUARE/ICON/Voice.jpg" alt="Voice">
+        </button>
+        <!-- Hidden input for image upload -->
+        <input type="file" id="file-input" accept="image/*" capture="camera" class="hidden">
+        <label for="file-input" class="icon-button" title="Image Search">
+            <img src="C:/SQUARE/ICON/Camera.jpg" alt="Camera">
+        </label>
+        <!-- 使用 JavaScript 处理点击事件 -->
+        <button class="icon-button" id="search-button" title="Search">
+            <img src="C:/SQUARE/ICON/search.jpg" alt="Search">
+        </button>
+    </div>
+
+    <script>
+        document.getElementById('file-input').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const formData = new FormData();
+        //the image is end with JPEG
+
+        formData.append('image', file);
+        console.log("Sending file...");  // 确认发送日志
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.products && data.products.length > 0) {
+                sessionStorage.setItem('products', JSON.stringify(data.products));
+                window.location.href = 'page.html';  // 确保这个路径正确
+            } else {
+                console.error('No products found:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+});
+
+        
+        // 这里我们将搜索按钮的点击事件转换为 JavaScript 处理
+        document.getElementById('search-button').addEventListener('click', function() {
+            // 你可以在这里添加基于文本搜索的逻辑
+            // 例如，获取搜索框的内容并发起一个请求到后端搜索 API
+        });
+        </script>
+    
+
+</body>
+</html>
