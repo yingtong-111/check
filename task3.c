@@ -75,6 +75,47 @@ void test_pages(struct Page pages[]) {
     }
 }
 
+float paged_mem_usage(struct Page pages[]){
+    float using_mem = 0;
+    for(int i = 0; i < MAX_PAGES; i++){
+        if (pages[i].is_allocated == 1){
+            using_mem++;
+        }
+    }
+    return ceil(using_mem*DIVISOR / MAX_PAGES);
+    
+}
+
+// Function to print all processes in the linked list
+void print_processes(struct Process *head) {
+    printf("Processes:\n");
+    while (head != NULL) {
+        printf("Arrival Time: %d, Name: %s, Service Time: %d, Memory Requirement: %d\n",
+               head->arrival_time, head->name, head->service_time, head->memory_requirement);
+        head = head->next;
+    }
+}
+
+// Function to free memory allocated for the linked list of processes
+void free_processes(struct Process *processes) {
+    struct Process *current = processes;
+    while (current != NULL) {
+        struct Process *temp = current;
+        current = current->next;
+        free(temp);
+    }
+}
+
+// Function to free memory allocated for the linked list of statistics
+void free_stat(struct PerformStat *statistics) {
+    struct PerformStat *current = statistics;
+    while (current != NULL) {
+        struct PerformStat *temp = current;
+        current = current->next;
+        free(temp);
+    }
+}
+
 void get_input_line(int argc, char* argv[], char *filename, char* memory_strategy, int* quantum){
   //  *quantum = 0;
     for (int i = 1; i < argc; i+=2){
@@ -122,6 +163,7 @@ void add_stat(struct PerformStat **head, struct PerformStat *new_stat){
     new_stat->next = NULL;
 
 }
+
 void update_stat_data(struct PerformStat **head, char* name, int completion_time){
     if(*head != NULL){
         struct PerformStat *current = *head;
@@ -147,13 +189,21 @@ int read_input_file(char *filename, struct Process **processes, struct PerformSt
     int num_process = 0;
     int arrival_time, service_time, memory_requirement;
     char name[FILENAME_LENGTH];
+    
 
     // Print the values read
     while (fscanf(file, "%d %s %d %d", &arrival_time, name, &service_time, &memory_requirement) == 4) {
         struct Process *new_process = malloc(sizeof(struct Process));
         struct PerformStat *new_statistics = malloc(sizeof(struct PerformStat));
-        if (new_process == NULL) {
-            fprintf(stderr, "Error: Memory allocation failed\n");
+        if (new_process == NULL || new_statistics == NULL) {
+            fprintf(stderr, "Memory allocation failed\n");
+            if (new_process != NULL){
+                free(new_process);
+            }
+            if (new_statistics != NULL){
+                free(new_statistics); 
+            }
+            fclose(file);
             exit(EXIT_FAILURE);
         }
         new_process->arrival_time = arrival_time;
@@ -161,7 +211,9 @@ int read_input_file(char *filename, struct Process **processes, struct PerformSt
         new_process->service_time = service_time;
         new_process->memory_requirement = memory_requirement;
         new_process->next = NULL;
+
         add_process(processes, new_process);
+
 
         strcpy(new_statistics->name, name);
         new_statistics->arrival_time = arrival_time;
@@ -170,9 +222,12 @@ int read_input_file(char *filename, struct Process **processes, struct PerformSt
         add_stat(statistics, new_statistics);
 
         num_process++;
+
+        
     }
 
     fclose(file);
+    
     return num_process;
 }
 
@@ -207,26 +262,8 @@ float ff_mem_usage(struct MemoryBlock **memory){
     
 }
 
-float paged_mem_usage(struct Page pages[]){
-    float using_mem = 0;
-    for(int i = 0; i < MAX_PAGES; i++){
-        if (pages[i].is_allocated == 1){
-            using_mem++;
-        }
-    }
-    return ceil(using_mem*DIVISOR / MAX_PAGES);
-    
-}
 
-// Function to print all processes in the linked list
-void print_processes(struct Process *head) {
-    printf("Processes:\n");
-    while (head != NULL) {
-        printf("Arrival Time: %d, Name: %s, Service Time: %d, Memory Requirement: %d\n",
-               head->arrival_time, head->name, head->service_time, head->memory_requirement);
-        head = head->next;
-    }
-}
+
 
 void print_memory(struct MemoryBlock *head) {
     printf("MemoryBlock:\n");
@@ -248,7 +285,7 @@ void aHead_to_aTail(struct Process **processes){
         }current -> next = old_head;
         old_head->next = NULL;
     }
-
+}
 */
 char* find_matching_pages_as_string(struct Process** process, struct Page pages[]) {
     // Allocate memory for the string to store page numbers
@@ -354,6 +391,8 @@ void a_to_bTail(struct Process **a, struct Process **b) {
         exit(EXIT_FAILURE);
     }
     memcpy(newNode, *a, sizeof(struct Process));
+    // Copy the name from (*a)->name to newNode->name
+    strcpy(newNode->name, (*a)->name);
     newNode->next = NULL;
 
     if (*b == NULL) {
@@ -994,13 +1033,7 @@ void print_stat(struct PerformStat **head, int *simulation_time){
 
 }
 
-void free_processes(struct Process *processes){
-    free(processes);
-}
 
-void free_stat(struct PerformStat *stat){
-    free(stat);
-}
 
 int main(int argc, char* argv[]){
     // read input line
@@ -1022,6 +1055,7 @@ int main(int argc, char* argv[]){
     
     free_processes(processes);
     free_stat(statistics);
+    free_processes(process_history);
     free(memory);
     return 0;
 }
