@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Search Results</title>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">LOGO</div>
+      <div class="search-container">
+        <form action="{% url 'search_results' %}" method="get">
+          <input
+            type="text"
+            class="search-input"
+            id="searchBox"
+            name="query"
+            placeholder="Search"
+          />
+          <button
+            class="icon-button"
+            title="Voice Search"
+            type="button"
+            onclick="startDictation()"
+            id="startBtn"
+          >
+            <img
+              src="/Users/lyt1109/Downloads/Square-TT-UI/images/Voice.jpg"
+              alt="Voice"
+            />
+          </button>
+          <button class="icon-button" title="Image Search">
+            <img
+              src="/Users/lyt1109/Downloads/Square-TT-UI/images/Camera.jpg"
+              alt="Camera"
+            />
+          </button>
+
+          <button class="icon-button" type="submit" name="search">
+            <img
+              src="/Users/lyt1109/Downloads/Square-TT-UI/images/search.jpg"
+              alt="Search"
+            />
+          </button>
+        </form>
+      </div>
+      <button class="user-icon" title="USER">
+      <a href="/Users/lyt1109/Downloads/Square-TT-UI/PROFILE.HTML" class="user-icon" title="USER">
+        <img src="/Users/lyt1109/Downloads/Square-TT-UI/images/USER.jpg" alt="USER">
+      </a>
+    </div>
+
+
+
+
+
+    <h2>搜索结果: "{{ query }}"</h2>
+    {% if products %}
+    <ul>
+      {% for product in products %}
+      <li>
+        {{ product.ProductName }}: {{ product.level }}, {{ product.block }}, {{
+        product.shelf }}, ${{ product.price }}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>未找到匹配的产品。</p>
+    {% endif %}
+
+    <script>
+      function startDictation() {
+        if ("webkitSpeechRecognition" in window) {
+          var recognition = new webkitSpeechRecognition();
+          recognition.continuous = false;
+          recognition.interimResults = false;
+          recognition.lang = "en-US";
+          recognition.start();
+
+          recognition.onresult = function (event) {
+            document.getElementById("searchBox").value =
+              event.results[0][0].transcript;
+            recognition.stop();
+          };
+
+          recognition.onerror = function (event) {
+            console.error("Speech recognition error:", event.error);
+            recognition.stop();
+          };
+        } else {
+          alert("Your browser does not support the Web Speech API");
+        }
+      }
+    </script>
+  </body>
+</html>
+<!-- search_results.html -->
+<form action="{% url 'search_results' %}" method="get">
+    <input type="text" name="query" placeholder="Search fruits...">
+    <button type="submit">Search</button>
+</form>
+<h2>搜索结果: "{{ query }}"</h2>
+{% if products %}
+    <ul>
+        {% for product in products %}
+            <li>{{ product.ProductName }}: {{product.level}}, {{product.block}}, {{product.shelf}}, ${{product.price}}
+
+            </li>
+
+
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>未找到匹配的产品。</p>
+{% endif %}
