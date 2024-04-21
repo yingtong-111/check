@@ -90,10 +90,11 @@
         formData.append('image', file);
         console.log("Sending file...");  // 确认发送日志
 
-        fetch('/upload', {
-            method: 'POST',
-            body: formData,
-        })
+        fetch('http://127.0.0.1:5000/upload', {
+        method: 'POST',
+        body: formData,
+})
+
         .then(response => response.json())
         .then(data => {
             if (data.products && data.products.length > 0) {
