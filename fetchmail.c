@@ -47,6 +47,8 @@ void get_input_line(int argc, char* argv[], char *username, char *password, char
     strcpy(serverName, argv[argc - 1]);
 }
 
+//Create an IPv6 socket (or fall back to IPv4 if IPv6 is not supported) on port 143 (or a TLS socket on port
+//993 if you are doing the extension task and -t was specified) to the host named on the command line.
 
 int establish_connection(char* serverName, int port){
     struct addrinfo hints, *res;
@@ -55,7 +57,7 @@ int establish_connection(char* serverName, int port){
 
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;
+    hints.ai_family = AF_UNSPEC;// // AF_UNSPEC allows for IPv4 or IPv6
     hints.ai_socktype = SOCK_STREAM;
 
     if(getaddrinfo(serverName, port, &hints, &res) != 0){
@@ -77,6 +79,8 @@ int establish_connection(char* serverName, int port){
     return sockfd;
 }
 
+
+
 void send_command(int sockfd, const char *command) {
     if (send(sockfd, command, strlen(command), 0) == -1) {
         perror("send");
@@ -97,15 +101,10 @@ void receive_response(int sockfd, char *buffer) {
 void logging_on(int sockfd, char *username, char* password){
     char buffer[BUFFER_SIZE];
     ssize_t bytes_received;
-
-    // Send login command to server
-    send_command(sockfd, buffer);
-
-    // Receive response from server
-    receive_response(sockfd, buffer);
+    sprintf(buffer, "A01 LOGIN %s %s\r\n", username, password);//RFC 3501
 
     // Check if login was successful
-    if (strstr(buffer, "OK") == NULL) {
+    if (strstr(buffer, "A01 OK") == NULL) {
         fprintf(stderr, "Login failure\n");
         exit(EXIT_FAILURE);
     }
@@ -116,13 +115,11 @@ void select_folder(int sockfd, const char *folder) {
 
     // Send SELECT command to server
     sprintf(buffer, "A02 SELECT %s\r\n", folder);
-    send_command(sockfd, buffer);
-
-    // Receive response from server
+    send_command(sockfd, buffer);// prepared command  sent through the socket, connected to  IMAP 
     receive_response(sockfd, buffer);
 
     // Check if folder selection was successful
-    if (strstr(buffer, "OK") == NULL) {
+    if (strstr(buffer, "A02 OK") == NULL) {
         fprintf(stderr, "Folder not found\n");
         exit(EXIT_FAILURE);
     }
@@ -138,6 +135,8 @@ int main(int argc, char* argv[]){
     int tls;
 
     get_input_line(argc, argv, username, password, folder, &messageNum, command, serverName);
+    logging_on(sockfd, username, password)
+    select_folder(sockfd, folder);
 
     
     int sockfd = establish_connection(serverName, tls);
